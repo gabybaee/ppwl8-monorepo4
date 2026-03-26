@@ -4,8 +4,7 @@ Proyek terakhir untuk mendapatkan deployment monorepo secara rapi:
    - Deploy terpisah: backend dan frontend project sendiri.
    - Koneksi ke github repo: Koneksi manual dari web vercel, tidak pakai Vercel CLI.
    - Vercel **Ignore Build Steps**: ketika hanya frotnend yang ada perubahan, backend tidak ikut ter build.
-   - url param API_KEY untuk akses backend.
-   - Fungsi berjalan sama seperti di development local.
+   - Fungsi berjalan sama seperti di development.
 2. Deploy database sqlite ke [turso](https://turso.tech/)
 
 ## Apps/Backend
@@ -72,11 +71,11 @@ Beberapa script **ditambahkan/dimodifikasi** untuk fungsi build vercel & seed da
   "scripts": {
     "build": "prisma generate && tsdown",
     "postinstall": "prisma generate",
-    "prod:start": "bun --env-file=.env.production src/index.ts",
     "prod:sql": "bunx prisma migrate diff --from-empty --to-schema prisma/schema.prisma --script > baseline.sql",
     "prod:check-env": "bun --env-file=.env.production -e \"console.log(process.env.DATABASE_URL)\"",
     "prod:migrate": "bun --env-file=.env.production prisma/migrate.ts",
-    "prod:seed": "bun --env-file=.env.production prisma/seed.ts"
+    "prod:seed": "bun --env-file=.env.production prisma/seed.ts",
+    "dev:turso" : "bun --env-file=.env.production src/index.ts"
   },
 }
 ```
@@ -110,9 +109,12 @@ cd apps/backend
 bun prod:sql # generate file baseline.sql
 bun prod:check-env # cek dulu DATABASE_URL sudah pakai url Turso. Jika sudah, lanjut!
 bun prod:migrate # run query dari file baseline.sql. berisi skema tabel
-bun prod:seed # mengisi data ke dalam tabel 
+bun prod:seed # mengisi data ke dalam tabel
+bun dev:turso # Cek koneksi development server dengan turso database
 ```
 > [?] migrate.ts sebenarnya fungsi untuk menjalankan query, anda dapat menggunakan kode ini jiga ingin mengubah skema database (tinggal edit file sql nya).
+
+Lihat di web turso, bukan proyek, lihat halaman `Edit Data` berisi tabel dan datanya.
 
 ### 6. **src/index.ts**
 edit/tambah beberapa bagian kode (jangan ada duplikasi!):
@@ -154,7 +156,7 @@ const app = new Elysia()
   })
   // ... lanjutan route kode lainnya (google, akses database)
   // !!! ubah url frontend jadi dynamic ambil dari env (lakukan ke semua file di apps/backend), contoh:
-      return redirect(`${process.meta.FRONTEND_URL}/classroom`);
+      return redirect(`${process.env.FRONTEND_URL}/classroom`);
   // !!! hapus bagian .listen(3000);
 
 // !!! hapus console log "yang terbuka" ini:
@@ -286,10 +288,10 @@ Sekarang kita akan deploy backend & frontend ke vercel (2 proyek terpisah).
 - Backend (Setingan ini dapat dilihat di halaman **Build and Deployment**)
   - name: `monorepo-be`
   - **Framework**: `Elysia` (sisanya biarkan default, bakal di timpa sama settingan di `vercel.json`)
-  - **Root Directory**: `apps/backend`, centang bagian `Skip Deployments when there are no changes...`
+  - **Root Directory**: `apps/backend`, centang bagian `Include files outside the root directory...` & `Skip Deployments when there are no changes...`.
   - **Ignore Build Steps**:
     - **Behaviour**: `Only build if there are changes in a folder`
-    - **Command**: `git diff HEAD^ HEAD --quiet -- ./` (ubah jadi `./`)
+    - **Command**: `git diff HEAD^ HEAD --quiet -- ./` (pakai path `./`)
     - Tambahkan **Environment Variables**: `FRONTEND_URL` (skip, tunggu frontend selesai di deploy), `API_KEY`, `DATABASE_URL`, `DB_AUTH_TOKEN`, dan variabel lainnya untuk fitur google.
 
 - Frontend:
@@ -298,7 +300,7 @@ Sekarang kita akan deploy backend & frontend ke vercel (2 proyek terpisah).
     - **Build Command**: `bun run build`
     - **Output Directory**: `dist`
     - **Install Command**: `bun install --ignore-scripts`
-  - **Root Directory**: `apps/frontend`, centang bagian `Skip Deployments when there are no changes...`
+  - **Root Directory**: `apps/frontend`, centang bagian `Include files outside the root directory...` & `Skip Deployments when there are no changes...`.
   - **Ignore Build Steps**:
     - **Behaviour**: `Only build if there are changes in a folder`
     - **Command**: `git diff HEAD^ HEAD --quiet -- ./`

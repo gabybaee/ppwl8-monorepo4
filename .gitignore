@@ -32,3 +32,10 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+
+apps/backend/.env
+apps/backend/.env.development
+apps/backend/.env.production
+
+apps/frontend/.env
+apps/frontend/.env.production
